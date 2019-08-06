@@ -1,0 +1,69 @@
+version: '2'
+networks:
+    atlassian:
+        driver: bridge
+services:
+    jira-software:
+        volumes:
+            - './data/jira:/var/atlassian/application-data/jira'
+        container_name: 'jira'
+        ports:
+            - '8080:8080'
+        networks:
+            - 'atlassian'
+        environment:
+            - ATL_TOMCAT_SECURE=true
+            - ATL_TOMCAT_SCHEME=https
+            - ATL_PROXY_PORT=443
+            - ATL_PROXY_NAME=${JIRA_DOMAIN}
+            - JVM_MINIMUM_MEMORY=${JIRA_MIN_MEM}
+            - JVM_MAXIMUM_MEMORY=${JIRA_MAX_MEM}
+        env_file: .env
+        image: atlassian/jira-software:8.3.1
+    confluence:
+        volumes:
+            - './data/confluence:/var/atlassian/application-data/confluence'
+        container_name: 'confluence'
+        ports:
+            - '8090:8090'
+        networks:
+            - 'atlassian'
+        environment:
+            - CATALINA_CONNECTOR_SECURE=true
+            - CATALINA_CONNECTOR_SCHEME=https
+            - CATALINA_CONNECTOR_PROXYPORT=443
+            - CATALINA_CONNECTOR_PROXYNAME=${CONF_DOMAIN}
+            - JVM_MINIMUM_MEMORY=${CONF_MIN_MEM}
+            - JVM_MAXIMUM_MEMORY=${CONF_MAX_MEM}
+        env_file: .env
+        image: atlassian/confluence-server:6.15.7-alpine
+    bitbucketserver:
+        volumes:
+            - './data/bitbucket:/var/atlassian/application-data/bitbucket'
+        container_name: 'bitbucket-server'
+        ports:
+            - '7990:7990'
+            - '7999:7999'
+        networks:
+            - 'atlassian'
+        environment:
+            - SERVER_SECURE=true
+            - SERVER_SCHEME=https
+            - SERVER_PROXY_PORT=443
+            - SERVER_PROXY_NAME=${BB_DOMAIN}
+            - JVM_MINIMUM_MEMORY=${BB_MIN_MEM}
+            - JVM_MAXIMUM_MEMORY=${BB_MAX_MEM}
+        env_file: .env
+        image: 'atlassian/bitbucket-server:6.5.1'
+    atlassiandb:
+        volumes:
+            - './scripts/atlassian.sql:/docker-entrypoint-initdb.d/atlassian.sql'
+            - './pg-data:/var/lib/postgresql/data'
+        container_name: 'atlassian-db'
+        ports:
+            - '5496:5432'
+        networks:
+            - 'atlassian'
+        environment:
+            - POSTGRES_PASSWORD=9R8Sy6YPq8vzla
+        image: 'postgres:9.6-alpine'
