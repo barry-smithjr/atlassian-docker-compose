@@ -1,2 +1,3 @@
 .env
 scripts/atlassian.sql
+traefik/traefik.toml

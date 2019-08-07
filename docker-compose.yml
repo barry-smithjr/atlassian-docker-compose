@@ -1,8 +1,23 @@
-version: '2'
+version: '3'
 networks:
     atlassian:
-        driver: bridge
+        external: false
+    web:
+        external: true
 services:
+    traefik:
+        image: traefik
+        restart: always
+        ports:
+            - "80:80"
+            - "443:443"
+            - "7080:7080"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - ./traefik/traefik.toml:/traefik.toml
+            - ./traefik/acme.json:/acme.json
+        networks:
+            - web
     jira-software:
         volumes:
             - './data/jira:/var/atlassian/application-data/jira'
@@ -10,7 +25,8 @@ services:
         ports:
             - '8080:8080'
         networks:
-            - 'atlassian'
+            - web
+            - atlassian
         environment:
             - ATL_TOMCAT_SECURE=true
             - ATL_TOMCAT_SCHEME=https
@@ -19,6 +35,12 @@ services:
             - JVM_MINIMUM_MEMORY=${JIRA_MIN_MEM}
             - JVM_MAXIMUM_MEMORY=${JIRA_MAX_MEM}
         env_file: .env
+        labels:
+            - traefik.enable=true
+            - traefik.backend=jira
+            - traefik.frontend.rule=Host:${JIRA_DOMAIN}
+            - traefik.docker.network=web
+            - traefik.port=8080
         image: atlassian/jira-software:8.3.1
     confluence:
         volumes:
@@ -27,7 +49,8 @@ services:
         ports:
             - '8090:8090'
         networks:
-            - 'atlassian'
+            - web
+            - atlassian
         environment:
             - CATALINA_CONNECTOR_SECURE=true
             - CATALINA_CONNECTOR_SCHEME=https
@@ -36,6 +59,12 @@ services:
             - JVM_MINIMUM_MEMORY=${CONF_MIN_MEM}
             - JVM_MAXIMUM_MEMORY=${CONF_MAX_MEM}
         env_file: .env
+        labels:
+            - traefik.enable=true
+            - traefik.backend=confluence
+            - traefik.frontend.rule=Host:${CONF_DOMAIN}
+            - traefik.docker.network=web
+            - traefik.port=8090
         image: atlassian/confluence-server:6.15.7-alpine
     bitbucketserver:
         volumes:
@@ -45,7 +74,8 @@ services:
             - '7990:7990'
             - '7999:7999'
         networks:
-            - 'atlassian'
+            - web
+            - atlassian
         environment:
             - SERVER_SECURE=true
             - SERVER_SCHEME=https
@@ -54,6 +84,12 @@ services:
             - JVM_MINIMUM_MEMORY=${BB_MIN_MEM}
             - JVM_MAXIMUM_MEMORY=${BB_MAX_MEM}
         env_file: .env
+        labels:
+            - traefik.enable=true
+            - traefik.backend=bitbucket
+            - traefik.frontend.rule=Host:${BB_DOMAIN}
+            - traefik.docker.network=web
+            - traefik.port=7990
         image: 'atlassian/bitbucket-server:6.5.1'
     atlassiandb:
         volumes:
@@ -63,7 +99,7 @@ services:
         ports:
             - '5496:5432'
         networks:
-            - 'atlassian'
+            - atlassian
         environment:
-            - POSTGRES_PASSWORD=9R8Sy6YPq8vzla
+            - POSTGRES_PASSWORD=${PG_PASSWORD}
         image: 'postgres:9.6-alpine'
